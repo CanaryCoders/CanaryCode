@@ -43,7 +43,7 @@ vi.mock("@xterm/xterm", () => ({
   Terminal: class MockTerminal {
     cols = 80;
     rows = 24;
-    options: { theme?: unknown } = {};
+    options: { theme?: unknown; fontFamily?: string; fontSize?: number } = {};
     buffer = {
       active: {
         viewportY: 0,

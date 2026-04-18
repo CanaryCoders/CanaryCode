@@ -47,7 +47,18 @@ import {
 } from "../types";
 import { readEnvironmentApi } from "~/environmentApi";
 import { readLocalApi } from "~/localApi";
+import { useSettings } from "../hooks/useSettings";
 import { selectTerminalEventEntries, useTerminalStateStore } from "../terminalStateStore";
+
+const DEFAULT_TERMINAL_FONT_STACK =
+  '"SF Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace';
+
+function resolveTerminalFontFamily(userFontFamily: string): string {
+  const trimmed = userFontFamily.trim();
+  if (trimmed.length === 0) return DEFAULT_TERMINAL_FONT_STACK;
+  const quoted = /[\s"']/.test(trimmed) && !/^".*"$/.test(trimmed) ? `"${trimmed}"` : trimmed;
+  return `${quoted}, ${DEFAULT_TERMINAL_FONT_STACK}`;
+}
 
 const MIN_DRAWER_HEIGHT = 180;
 const MAX_DRAWER_HEIGHT_RATIO = 0.75;
@@ -293,6 +304,10 @@ export function TerminalViewport({
   const keybindingsRef = useRef(keybindings);
   const lastAppliedTerminalEventIdRef = useRef(0);
   const terminalHydratedRef = useRef(false);
+  const terminalFontFamily = useSettings((s) => s.terminalFontFamily);
+  const terminalFontSize = useSettings((s) => s.terminalFontSize);
+  const initialFontFamilyRef = useRef(terminalFontFamily);
+  const initialFontSizeRef = useRef(terminalFontSize);
   const handleSessionExited = useEffectEvent(() => {
     onSessionExited();
   });
@@ -318,9 +333,9 @@ export function TerminalViewport({
     const terminal = new Terminal({
       cursorBlink: true,
       lineHeight: 1.2,
-      fontSize: 12,
+      fontSize: initialFontSizeRef.current,
       scrollback: 5_000,
-      fontFamily: '"SF Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace',
+      fontFamily: resolveTerminalFontFamily(initialFontFamilyRef.current),
       theme: terminalThemeFromApp(mount),
     });
     terminal.loadAddon(fitAddon);
@@ -765,6 +780,41 @@ export function TerminalViewport({
       window.cancelAnimationFrame(frame);
     };
   }, [autoFocus, focusRequestId]);
+
+  useEffect(() => {
+    const api = readEnvironmentApi(environmentId);
+    const terminal = terminalRef.current;
+    const fitAddon = fitAddonRef.current;
+    if (!terminal || !fitAddon) return;
+    const nextFontFamily = resolveTerminalFontFamily(terminalFontFamily);
+    if (terminal.options.fontFamily !== nextFontFamily) {
+      terminal.options.fontFamily = nextFontFamily;
+    }
+    if (terminal.options.fontSize !== terminalFontSize) {
+      terminal.options.fontSize = terminalFontSize;
+    }
+    const wasAtBottom = terminal.buffer.active.viewportY >= terminal.buffer.active.baseY;
+    const frame = window.requestAnimationFrame(() => {
+      fitAddon.fit();
+      if (wasAtBottom) {
+        terminal.scrollToBottom();
+      }
+      terminal.refresh(0, Math.max(0, terminal.rows - 1));
+      if (api) {
+        void api.terminal
+          .resize({
+            threadId,
+            terminalId,
+            cols: terminal.cols,
+            rows: terminal.rows,
+          })
+          .catch(() => undefined);
+      }
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [environmentId, terminalFontFamily, terminalFontSize, terminalId, threadId]);
 
   useEffect(() => {
     const api = readEnvironmentApi(environmentId);

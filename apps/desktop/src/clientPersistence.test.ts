@@ -58,6 +58,8 @@ const clientSettings: ClientSettings = {
   },
   sidebarProjectSortOrder: "manual",
   sidebarThreadSortOrder: "created_at",
+  terminalFontFamily: "JetBrainsMono Nerd Font",
+  terminalFontSize: 14,
   timestampFormat: "24-hour",
 };
 

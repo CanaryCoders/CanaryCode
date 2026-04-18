@@ -478,6 +478,12 @@ export function useSettingsRestore(onRestored?: () => void) {
       ...(settings.confirmThreadDelete !== DEFAULT_UNIFIED_SETTINGS.confirmThreadDelete
         ? ["Delete confirmation"]
         : []),
+      ...(settings.terminalFontFamily !== DEFAULT_UNIFIED_SETTINGS.terminalFontFamily
+        ? ["Terminal font family"]
+        : []),
+      ...(settings.terminalFontSize !== DEFAULT_UNIFIED_SETTINGS.terminalFontSize
+        ? ["Terminal font size"]
+        : []),
       ...(isGitWritingModelDirty ? ["Git writing model"] : []),
       ...(areProviderSettingsDirty ? ["Providers"] : []),
     ],
@@ -490,6 +496,8 @@ export function useSettingsRestore(onRestored?: () => void) {
       settings.defaultThreadEnvMode,
       settings.diffWordWrap,
       settings.enableAssistantStreaming,
+      settings.terminalFontFamily,
+      settings.terminalFontSize,
       settings.timestampFormat,
       theme,
     ],
@@ -1125,6 +1133,67 @@ export function GeneralSettingsPanel() {
                 }}
               />
             </div>
+          }
+        />
+      </SettingsSection>
+
+      <SettingsSection title="Terminal">
+        <SettingsRow
+          title="Terminal font family"
+          description="Type an installed font name (e.g. “JetBrainsMono Nerd Font”). Leave empty for the default monospace stack."
+          resetAction={
+            settings.terminalFontFamily !== DEFAULT_UNIFIED_SETTINGS.terminalFontFamily ? (
+              <SettingResetButton
+                label="terminal font family"
+                onClick={() =>
+                  updateSettings({
+                    terminalFontFamily: DEFAULT_UNIFIED_SETTINGS.terminalFontFamily,
+                  })
+                }
+              />
+            ) : null
+          }
+          control={
+            <Input
+              className="w-full sm:w-72"
+              value={settings.terminalFontFamily}
+              onChange={(event) => updateSettings({ terminalFontFamily: event.target.value })}
+              placeholder="Default monospace"
+              spellCheck={false}
+              aria-label="Terminal font family"
+            />
+          }
+        />
+
+        <SettingsRow
+          title="Terminal font size"
+          description="Size in pixels (8–24)."
+          resetAction={
+            settings.terminalFontSize !== DEFAULT_UNIFIED_SETTINGS.terminalFontSize ? (
+              <SettingResetButton
+                label="terminal font size"
+                onClick={() =>
+                  updateSettings({ terminalFontSize: DEFAULT_UNIFIED_SETTINGS.terminalFontSize })
+                }
+              />
+            ) : null
+          }
+          control={
+            <Input
+              type="number"
+              min={8}
+              max={24}
+              className="w-full sm:w-24"
+              value={settings.terminalFontSize}
+              onChange={(event) => {
+                const next = Number(event.target.value);
+                if (!Number.isFinite(next)) return;
+                updateSettings({
+                  terminalFontSize: Math.min(24, Math.max(8, Math.round(next))),
+                });
+              }}
+              aria-label="Terminal font size"
+            />
           }
         />
       </SettingsSection>
