@@ -98,6 +98,26 @@ it.layer(NodeServices.layer)("resolveEditorLaunch", (it) => {
         command: "idea",
         args: ["/tmp/workspace"],
       });
+
+      const neovideLaunch = yield* resolveEditorLaunch(
+        { cwd: "/tmp/workspace", editor: "neovide" },
+        "darwin",
+        { PATH: "" },
+      );
+      assert.deepEqual(neovideLaunch, {
+        command: "neovide",
+        args: ["/tmp/workspace"],
+      });
+
+      const nvimLaunch = yield* resolveEditorLaunch(
+        { cwd: "/tmp/workspace", editor: "nvim" },
+        "darwin",
+        { PATH: "" },
+      );
+      assert.deepEqual(nvimLaunch, {
+        command: "nvim",
+        args: ["/tmp/workspace"],
+      });
     }),
   );
 
@@ -206,6 +226,46 @@ it.layer(NodeServices.layer)("resolveEditorLaunch", (it) => {
       assert.deepEqual(ideaLineAndColumn, {
         command: "idea",
         args: ["--line", "71", "--column", "5", "/tmp/workspace/src/open.ts"],
+      });
+
+      const neovideLineOnly = yield* resolveEditorLaunch(
+        { cwd: "/tmp/workspace/AGENTS.md:48", editor: "neovide" },
+        "darwin",
+        { PATH: "" },
+      );
+      assert.deepEqual(neovideLineOnly, {
+        command: "neovide",
+        args: ["+48", "/tmp/workspace/AGENTS.md"],
+      });
+
+      const neovideLineAndColumn = yield* resolveEditorLaunch(
+        { cwd: "/tmp/workspace/src/open.ts:71:5", editor: "neovide" },
+        "darwin",
+        { PATH: "" },
+      );
+      assert.deepEqual(neovideLineAndColumn, {
+        command: "neovide",
+        args: ["+call cursor(71,5)", "/tmp/workspace/src/open.ts"],
+      });
+
+      const nvimLineOnly = yield* resolveEditorLaunch(
+        { cwd: "/tmp/workspace/AGENTS.md:48", editor: "nvim" },
+        "darwin",
+        { PATH: "" },
+      );
+      assert.deepEqual(nvimLineOnly, {
+        command: "nvim",
+        args: ["+48", "/tmp/workspace/AGENTS.md"],
+      });
+
+      const nvimLineAndColumn = yield* resolveEditorLaunch(
+        { cwd: "/tmp/workspace/src/open.ts:71:5", editor: "nvim" },
+        "darwin",
+        { PATH: "" },
+      );
+      assert.deepEqual(nvimLineAndColumn, {
+        command: "nvim",
+        args: ["+call cursor(71,5)", "/tmp/workspace/src/open.ts"],
       });
     }),
   );

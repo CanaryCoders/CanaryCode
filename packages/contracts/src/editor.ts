@@ -1,7 +1,12 @@
 import { Schema } from "effect";
 import { TrimmedNonEmptyString } from "./baseSchemas.ts";
 
-export const EditorLaunchStyle = Schema.Literals(["direct-path", "goto", "line-column"]);
+export const EditorLaunchStyle = Schema.Literals([
+  "direct-path",
+  "goto",
+  "line-column",
+  "plus-line",
+]);
 export type EditorLaunchStyle = typeof EditorLaunchStyle.Type;
 
 type EditorDefinition = {
@@ -26,6 +31,8 @@ export const EDITORS = [
   { id: "vscodium", label: "VSCodium", commands: ["codium"], launchStyle: "goto" },
   { id: "zed", label: "Zed", commands: ["zed", "zeditor"], launchStyle: "direct-path" },
   { id: "antigravity", label: "Antigravity", commands: ["agy"], launchStyle: "goto" },
+  { id: "neovide", label: "Neovide", commands: ["neovide"], launchStyle: "plus-line" },
+  { id: "nvim", label: "Neovim", commands: ["nvim"], launchStyle: "plus-line" },
   { id: "idea", label: "IntelliJ IDEA", commands: ["idea"], launchStyle: "line-column" },
   { id: "file-manager", label: "File Manager", commands: null, launchStyle: "direct-path" },
 ] as const satisfies ReadonlyArray<EditorDefinition>;

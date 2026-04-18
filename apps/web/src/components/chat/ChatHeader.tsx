@@ -106,6 +106,7 @@ export const ChatHeader = memo(function ChatHeader({
             keybindings={keybindings}
             availableEditors={availableEditors}
             openInCwd={openInCwd}
+            threadRef={scopeThreadRef(activeThreadEnvironmentId, activeThreadId)}
           />
         )}
         {activeProjectName && (

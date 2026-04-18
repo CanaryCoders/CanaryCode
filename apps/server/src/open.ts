@@ -67,6 +67,16 @@ function resolveCommandEditorArgs(
       const { path, line, column } = parsedTarget;
       return [...(line ? ["--line", line] : []), ...(column ? ["--column", column] : []), path];
     }
+    case "plus-line": {
+      if (!parsedTarget) {
+        return [target];
+      }
+
+      const { path, line, column } = parsedTarget;
+      if (line && column) return [`+call cursor(${line},${column})`, path];
+      if (line) return [`+${line}`, path];
+      return [path];
+    }
   }
 }
 

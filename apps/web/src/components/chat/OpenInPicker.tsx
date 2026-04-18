@@ -1,4 +1,4 @@
-import { EditorId, type ResolvedKeybindingsConfig } from "@t3tools/contracts";
+import { EditorId, type ResolvedKeybindingsConfig, type ScopedThreadRef } from "@t3tools/contracts";
 import { memo, useCallback, useEffect, useMemo } from "react";
 import { isOpenFavoriteEditorShortcut, shortcutLabelForCommand } from "../../keybindings";
 import { usePreferredEditor } from "../../editorPreferences";
@@ -11,6 +11,7 @@ import {
   CursorIcon,
   Icon,
   KiroIcon,
+  NeovimIcon,
   TraeIcon,
   IntelliJIdeaIcon,
   VisualStudioCode,
@@ -20,6 +21,9 @@ import {
 } from "../Icons";
 import { isMacPlatform, isWindowsPlatform } from "~/lib/utils";
 import { readLocalApi } from "~/localApi";
+import { readEnvironmentApi } from "~/environmentApi";
+import { useTerminalStateStore } from "~/terminalStateStore";
+import { randomUUID } from "~/lib/utils";
 
 const resolveOptions = (platform: string, availableEditors: ReadonlyArray<EditorId>) => {
   const baseOptions: ReadonlyArray<{ label: string; Icon: Icon; value: EditorId }> = [
@@ -64,6 +68,16 @@ const resolveOptions = (platform: string, availableEditors: ReadonlyArray<Editor
       value: "antigravity",
     },
     {
+      label: "Neovide",
+      Icon: NeovimIcon,
+      value: "neovide",
+    },
+    {
+      label: "Neovim",
+      Icon: NeovimIcon,
+      value: "nvim",
+    },
+    {
       label: "IntelliJ IDEA",
       Icon: IntelliJIdeaIcon,
       value: "idea",
@@ -81,14 +95,20 @@ const resolveOptions = (platform: string, availableEditors: ReadonlyArray<Editor
   return baseOptions.filter((option) => availableEditors.includes(option.value));
 };
 
+function shellQuotePosix(value: string): string {
+  return `'${value.replace(/'/g, "'\\''")}'`;
+}
+
 export const OpenInPicker = memo(function OpenInPicker({
   keybindings,
   availableEditors,
   openInCwd,
+  threadRef,
 }: {
   keybindings: ResolvedKeybindingsConfig;
   availableEditors: ReadonlyArray<EditorId>;
   openInCwd: string | null;
+  threadRef: ScopedThreadRef | null;
 }) {
   const [preferredEditor, setPreferredEditor] = usePreferredEditor(availableEditors);
   const options = useMemo(
@@ -97,16 +117,60 @@ export const OpenInPicker = memo(function OpenInPicker({
   );
   const primaryOption = options.find(({ value }) => value === preferredEditor) ?? null;
 
+  const storeNewTerminal = useTerminalStateStore((s) => s.newTerminal);
+  const storeSetActiveTerminal = useTerminalStateStore((s) => s.setActiveTerminal);
+  const storeSetTerminalOpen = useTerminalStateStore((s) => s.setTerminalOpen);
+  const storeSetTerminalLaunchContext = useTerminalStateStore((s) => s.setTerminalLaunchContext);
+
   const openInEditor = useCallback(
     (editorId: EditorId | null) => {
-      const api = readLocalApi();
-      if (!api || !openInCwd) return;
+      if (!openInCwd) return;
       const editor = editorId ?? preferredEditor;
       if (!editor) return;
+
+      if (editor === "nvim") {
+        if (!threadRef) return;
+        const api = readEnvironmentApi(threadRef.environmentId);
+        if (!api) return;
+        const terminalId = `nvim-${randomUUID()}`;
+        storeSetTerminalLaunchContext(threadRef, {
+          cwd: openInCwd,
+          worktreePath: null,
+        });
+        storeNewTerminal(threadRef, terminalId);
+        storeSetActiveTerminal(threadRef, terminalId);
+        storeSetTerminalOpen(threadRef, true);
+        void (async () => {
+          await api.terminal.open({
+            threadId: threadRef.threadId,
+            terminalId,
+            cwd: openInCwd,
+          });
+          await api.terminal.write({
+            threadId: threadRef.threadId,
+            terminalId,
+            data: `nvim ${shellQuotePosix(openInCwd)}\r`,
+          });
+        })();
+        setPreferredEditor(editor);
+        return;
+      }
+
+      const api = readLocalApi();
+      if (!api) return;
       void api.shell.openInEditor(openInCwd, editor);
       setPreferredEditor(editor);
     },
-    [preferredEditor, openInCwd, setPreferredEditor],
+    [
+      preferredEditor,
+      openInCwd,
+      threadRef,
+      storeNewTerminal,
+      storeSetActiveTerminal,
+      storeSetTerminalOpen,
+      storeSetTerminalLaunchContext,
+      setPreferredEditor,
+    ],
   );
 
   const openFavoriteEditorShortcutLabel = useMemo(
@@ -116,17 +180,14 @@ export const OpenInPicker = memo(function OpenInPicker({
 
   useEffect(() => {
     const handler = (e: globalThis.KeyboardEvent) => {
-      const api = readLocalApi();
       if (!isOpenFavoriteEditorShortcut(e, keybindings)) return;
-      if (!api || !openInCwd) return;
-      if (!preferredEditor) return;
-
+      if (!openInCwd || !preferredEditor) return;
       e.preventDefault();
-      void api.shell.openInEditor(openInCwd, preferredEditor);
+      openInEditor(preferredEditor);
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [preferredEditor, keybindings, openInCwd]);
+  }, [preferredEditor, keybindings, openInCwd, openInEditor]);
 
   return (
     <Group aria-label="Subscription actions">
